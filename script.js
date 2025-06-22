@@ -1,7 +1,7 @@
 // Global variables
 let allClusters = [];
 let currentPage = 0;
-const clustersPerPage = 10;
+const clustersPerPage = 30; // Increased from 10 to 30 clusters per page
 let selectedClusterId = null; // Track the currently selected cluster
 
 // DOM elements
@@ -17,12 +17,27 @@ const prevBtn = document.getElementById('prevBtn');
 const nextBtn = document.getElementById('nextBtn');
 const thumbnailSizeSlider = document.getElementById('thumbnailSize');
 const sizeValueDisplay = document.getElementById('sizeValue');
+const queryInput = document.getElementById('queryInput');
+const applyQueryBtn = document.getElementById('applyQueryBtn');
+const clearQueryBtn = document.getElementById('clearQueryBtn');
+const queryMatchCountElement = document.getElementById('queryMatchCount');
+
+// Store all available columns from CSV
+let availableColumns = [];
+let currentQuery = null;
 
 // Event listeners
 loadBtn.addEventListener('click', handleFileUpload);
 prevBtn.addEventListener('click', showPreviousPage);
 nextBtn.addEventListener('click', showNextPage);
 thumbnailSizeSlider.addEventListener('input', updateThumbnailSize);
+applyQueryBtn.addEventListener('click', applyQuery);
+clearQueryBtn.addEventListener('click', clearQuery);
+queryInput.addEventListener('keyup', function(event) {
+    if (event.key === 'Enter') {
+        applyQuery();
+    }
+});
 
 // Create modal elements for image preview
 const modal = document.createElement('div');
@@ -61,14 +76,17 @@ function handleFileUpload() {
 function processCSVData(csvData) {
     // Parse CSV
     const lines = csvData.split('\n');
-    const headers = lines[0].split(',');
+    const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+
+    // Store available columns
+    availableColumns = headers;
 
     // Find column indices
-    const pathIndex = headers.findIndex(h => h.trim().toLowerCase() === 'local_path');
-    const componentIndex = headers.findIndex(h => h.trim().toLowerCase() === 'component');
-    const conditionIndex = headers.findIndex(h => h.trim().toLowerCase() === 'condition');
-    const nameIndex = headers.findIndex(h => h.trim().toLowerCase() === 'name');
-    const hashedCaseIdIndex = headers.findIndex(h => h.trim().toLowerCase() === 'hashed_case_id');
+    const pathIndex = headers.indexOf('local_path');
+    const componentIndex = headers.indexOf('component');
+    const conditionIndex = headers.indexOf('condition');
+    const nameIndex = headers.indexOf('name');
+    const hashedCaseIdIndex = headers.indexOf('hashed_case_id');
 
     if (pathIndex === -1 || componentIndex === -1) {
         alert('CSV must contain "local_path" and "component" columns');
@@ -101,6 +119,19 @@ function processCSVData(csvData) {
             condition: conditionIndex !== -1 ? fields[conditionIndex].trim() : null,
             hashedCaseId: hashedCaseIdIndex !== -1 ? fields[hashedCaseIdIndex].trim().substring(0, 5) : null
         };
+
+        // Store all columns from CSV for query filtering
+        headers.forEach((header, index) => {
+            if (index < fields.length) {
+                // Try to convert numeric values
+                const value = fields[index].trim();
+                if (!isNaN(value) && value !== '') {
+                    imageObj[header] = parseFloat(value);
+                } else {
+                    imageObj[header] = value;
+                }
+            }
+        });
 
         if (!clusterMap.has(component)) {
             clusterMap.set(component, []);
@@ -198,6 +229,11 @@ function displayCurrentPage() {
             // Apply the thumbnail size immediately to the zoomed view
             updateThumbnailSize();
 
+            // Apply query highlights if there's an active query
+            if (currentQuery) {
+                applyHighlightsToVisibleImages();
+            }
+
             return;
         }
     }
@@ -218,6 +254,11 @@ function displayCurrentPage() {
     for (let i = startIdx; i < endIdx; i++) {
         const cluster = allClusters[i];
         displayCluster(cluster, false);
+    }
+
+    // Apply query highlights if there's an active query
+    if (currentQuery) {
+        applyHighlightsToVisibleImages();
     }
 }
 
@@ -252,6 +293,9 @@ function displayCluster(cluster, isZoomedIn) {
     cluster.paths.forEach(imageObj => {
         const imageContainer = document.createElement('div');
         imageContainer.className = 'image-container';
+
+        // Store image data in the DOM element's dataset for query filtering
+        imageContainer.dataset.imageData = JSON.stringify(imageObj);
 
         // Create image element
         const img = document.createElement('img');
@@ -341,6 +385,145 @@ function extractFilename(path) {
     // Extract just the filename from the path
     const parts = path.split('/');
     return parts[parts.length - 1];
+}
+
+// Function to apply query and highlight matching images
+function applyQuery() {
+    const queryString = queryInput.value.trim();
+    if (!queryString) {
+        clearQuery();
+        return;
+    }
+
+    currentQuery = queryString;
+
+    // Clear previous highlights
+    clearQueryHighlights();
+
+    try {
+        // Apply query to ALL images in all clusters, not just visible ones
+        let totalMatchCount = 0;
+
+        // Process each cluster's images
+        allClusters.forEach(cluster => {
+            cluster.paths.forEach(imageObj => {
+                try {
+                    // Use Function Constructor to evaluate the query
+                    // Replace column names with imageData.column_name
+                    let processedQuery = queryString;
+
+                    // Get all column names from the image data
+                    const columnNames = Object.keys(imageObj);
+
+                    // Replace column names with d.column_name
+                    columnNames.forEach(column => {
+                        const regex = new RegExp(`\\b${column}\\b`, 'g');
+                        processedQuery = processedQuery.replace(regex, `d.${column}`);
+                    });
+
+                    // Create and execute the function
+                    const evalFunction = new Function('d', `return ${processedQuery}`);
+
+                    // Store the match result in the image object for later use
+                    imageObj.matchesQuery = evalFunction(imageObj);
+
+                    if (imageObj.matchesQuery) {
+                        totalMatchCount++;
+                    }
+                } catch (error) {
+                    console.error('Error evaluating query for image:', error);
+                }
+            });
+        });
+
+        // Update the match count display
+        queryMatchCountElement.textContent = `${totalMatchCount} matches`;
+        queryMatchCountElement.style.display = totalMatchCount > 0 ? 'inline-block' : 'none';
+
+        // Redisplay the current page to apply the highlighting
+        // This is more reliable than trying to update the existing DOM elements
+        displayCurrentPage();
+
+    } catch (error) {
+        console.error('Query error:', error);
+        queryMatchCountElement.textContent = `Error: ${error.message}`;
+        queryMatchCountElement.style.display = 'inline-block';
+    }
+}
+
+// Function to apply highlights to currently visible images
+function applyHighlightsToVisibleImages() {
+    // Apply highlights to currently visible images
+    const allImageContainers = document.querySelectorAll('.image-container');
+
+    allImageContainers.forEach(container => {
+        if (container.dataset.imageData) {
+            const imageData = JSON.parse(container.dataset.imageData);
+
+            if (imageData.matchesQuery) {
+                container.classList.add('query-match');
+            } else {
+                container.classList.remove('query-match');
+            }
+        }
+    });
+
+    // Update cluster headers with match count
+    updateClusterMatchCounts();
+}
+
+// Function to clear query highlights
+function clearQuery() {
+    currentQuery = null;
+    queryInput.value = '';
+    clearQueryHighlights();
+
+    // Remove match counts from cluster headers
+    const matchCountElements = document.querySelectorAll('.query-match-count');
+    matchCountElements.forEach(el => el.remove());
+
+    // Hide the match count label
+    queryMatchCountElement.style.display = 'none';
+    queryMatchCountElement.textContent = '';
+
+    // Clear the matchesQuery flag from all images
+    allClusters.forEach(cluster => {
+        cluster.paths.forEach(imageObj => {
+            imageObj.matchesQuery = false;
+        });
+    });
+}
+
+// Helper function to clear query highlights
+function clearQueryHighlights() {
+    const highlightedElements = document.querySelectorAll('.query-match');
+    highlightedElements.forEach(el => {
+        el.classList.remove('query-match');
+    });
+}
+
+// Function to update cluster headers with match counts
+function updateClusterMatchCounts() {
+    const clusters = document.querySelectorAll('.cluster');
+
+    clusters.forEach(cluster => {
+        const matches = cluster.querySelectorAll('.query-match');
+        if (matches.length > 0) {
+            const headerElement = cluster.querySelector('.cluster-header h3');
+
+            // Remove existing match count if any
+            const existingCount = headerElement.querySelector('.query-match-count');
+            if (existingCount) {
+                existingCount.remove();
+            }
+
+            // Add new match count
+            const matchCountElement = document.createElement('span');
+            matchCountElement.className = 'query-match-count';
+            matchCountElement.textContent = `${matches.length} matches`;
+            headerElement.appendChild(matchCountElement);
+        }
+    });
 }
 
 // Function to update thumbnail size based on slider value

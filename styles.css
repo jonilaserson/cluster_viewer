@@ -74,10 +74,50 @@ button:hover {
     gap: 15px;
 }
 
-.navigation-controls {
+.controls-row {
     display: flex;
+    flex-wrap: wrap;
     justify-content: space-between;
     align-items: center;
+    gap: 20px;
+}
+
+.navigation-controls {
+    display: flex;
+    justify-content: flex-end; /* Move to the right side */
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.page-navigation {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.nav-btn {
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: bold;
+    border-radius: 50%;
+    background-color: #2196F3;
+    color: white;
+    border: none;
+    cursor: pointer;
+}
+
+.nav-btn:hover {
+    background-color: #0b7dda;
+}
+
+.nav-btn:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
 }
 
 .display-controls {
@@ -94,10 +134,54 @@ button:hover {
     width: 150px;
 }
 
+/* Query Controls */
+.query-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+}
+
+.query-controls label {
+    margin-right: 5px;
+    white-space: nowrap;
+}
+
+.query-controls input[type="text"] {
+    flex: 1;
+    min-width: 200px;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    font-size: 14px;
+}
+
+.query-help {
+    width: 100%;
+    font-size: 12px;
+    color: #666;
+    margin-top: 5px;
+}
+
+.query-help p {
+    margin: 2px 0;
+}
+
+.query-match-count-label {
+    background-color: #2196F3;
+    color: white;
+    padding: 5px 10px;
+    border-radius: 15px;
+    font-size: 12px;
+    white-space: nowrap;
+    display: none; /* Hidden by default, shown when there are matches */
+}
+
 /* Clusters Container */
 .clusters-container {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); /* Increased from 300px to 360px (20% wider) */
     gap: 20px;
     width: 100%;
 }
@@ -231,6 +315,25 @@ button:hover {
     top: 5px;
     left: 5px;
     display: none; /* Hidden for now, will be enabled in future */
+}
+
+/* Query match highlight */
+.query-match {
+    border: 3px solid #2196F3;
+    box-shadow: 0 0 10px rgba(33, 150, 243, 0.5);
+}
+
+.query-match img {
+    border: 2px solid #2196F3;
+}
+
+.query-match-count {
+    background-color: #2196F3;
+    color: white;
+    padding: 5px 10px;
+    border-radius: 15px;
+    font-size: 12px;
+    margin-left: 10px;
 }
 
 /* Modal for enlarged image */
