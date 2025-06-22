@@ -1,0 +1,272 @@
+/* General Styles */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    line-height: 1.6;
+    color: #333;
+    background-color: #f4f4f4;
+    padding: 20px;
+}
+
+.container {
+    width: 100%;
+    margin: 0 auto;
+}
+
+header {
+    background-color: #333;
+    color: #fff;
+    padding: 1rem;
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+h1, h2 {
+    margin-bottom: 10px;
+}
+
+/* Upload Section */
+.upload-section {
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
+}
+
+input[type="file"] {
+    margin: 10px 0;
+    padding: 10px;
+    width: 100%;
+}
+
+button {
+    background-color: #333;
+    color: #fff;
+    border: none;
+    padding: 10px 15px;
+    cursor: pointer;
+    border-radius: 3px;
+    font-size: 16px;
+}
+
+button:hover {
+    background-color: #555;
+}
+
+/* Stats and Controls Sections */
+.stats-section, .controls-section {
+    background-color: #fff;
+    padding: 15px;
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
+}
+
+.controls-section {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.navigation-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.display-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.display-controls label {
+    margin-right: 5px;
+}
+
+.display-controls input[type="range"] {
+    width: 150px;
+}
+
+/* Clusters Container */
+.clusters-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+    width: 100%;
+}
+
+/* When a cluster is zoomed in, change the container layout */
+.clusters-container:has(.zoomed-in) {
+    display: block;
+    width: 100%;
+}
+
+.cluster {
+    background-color: #fff;
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    padding: 15px;
+}
+
+.cluster-header {
+    background-color: #eee;
+    padding: 10px;
+    margin-bottom: 10px;
+    border-radius: 3px;
+}
+
+.cluster-header h3 {
+    margin: 0;
+}
+
+
+.back-button {
+    display: inline-block;
+    margin-bottom: 20px;
+    background-color: #555;
+    transition: background-color 0.3s;
+}
+
+.back-button:hover {
+    background-color: #333;
+}
+
+/* Zoomed-in cluster takes more space */
+.zoomed-in {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.zoomed-in .images-grid {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 20px;
+    padding: 20px 0;
+    width: 100%;
+}
+
+.zoomed-in .image-container {
+    flex: 0 0 auto;
+    margin: 10px;
+    width: auto;
+    max-width: 420px;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border-radius: 5px;
+    padding: 10px;
+    background-color: #f9f9f9;
+}
+
+.zoomed-in .image-container:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+
+.zoomed-in .image-container img {
+    width: 100%;
+    height: auto;
+    max-width: 420px;
+    border-radius: 3px;
+}
+
+.zoomed-in .cluster-header {
+    background-color: #333;
+    color: white;
+    padding: 15px;
+    margin-bottom: 20px;
+    border-radius: 5px;
+}
+
+.zoomed-in .cluster-header h3 {
+    font-size: 1.5em;
+}
+
+.images-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 10px;
+}
+
+/* This class will be dynamically updated by JavaScript */
+.custom-thumbnail-size {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+}
+
+.image-container {
+    position: relative;
+}
+
+.image-container img {
+    width: 100%;
+    height: auto;
+    border-radius: 3px;
+    cursor: pointer;
+}
+
+.image-container:hover img {
+    opacity: 0.8;
+}
+
+.image-path {
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Future feature: Checkbox for image selection */
+.image-checkbox {
+    position: absolute;
+    top: 5px;
+    left: 5px;
+    display: none; /* Hidden for now, will be enabled in future */
+}
+
+/* Modal for enlarged image */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.9);
+}
+
+.modal-content {
+    margin: auto;
+    display: block;
+    max-width: 80%;
+    max-height: 80%;
+}
+
+.modal-caption {
+    margin: auto;
+    display: block;
+    width: 80%;
+    text-align: center;
+    color: #ccc;
+    padding: 10px 0;
+}
+
+.close {
+    position: absolute;
+    top: 15px;
+    right: 35px;
+    color: #f1f1f1;
+    font-size: 40px;
+    font-weight: bold;
+    cursor: pointer;
+}

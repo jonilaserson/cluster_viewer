@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Cluster Viewer</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Image Cluster Viewer</h1>
+        </header>
+
+        <div class="upload-section">
+            <h2>Upload CSV File</h2>
+            <p>Select a CSV file with columns "local_path" (path to image) and "component" (cluster ID)</p>
+            <input type="file" id="csvFile" accept=".csv">
+            <button id="loadBtn">Load Clusters</button>
+        </div>
+
+        <div class="stats-section" id="statsSection" style="display: none;">
+            <h2>Cluster Statistics</h2>
+            <p id="totalClusters">Total clusters: 0</p>
+            <p id="totalImages">Total images: 0</p>
+        </div>
+
+        <div class="controls-section" id="controlsSection" style="display: none;">
+            <div class="navigation-controls">
+                <button id="prevBtn">Previous Clusters</button>
+                <span id="pageInfo">Page 1 of 1</span>
+                <button id="nextBtn">Next Clusters</button>
+            </div>
+
+            <div class="display-controls">
+                <label for="thumbnailSize">Thumbnail Size:</label>
+                <input type="range" id="thumbnailSize" min="50" max="420" value="100" step="10">
+                <span id="sizeValue">100px</span>
+            </div>
+        </div>
+
+        <div class="clusters-container" id="clustersContainer">
+            <!-- Clusters will be displayed here -->
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
