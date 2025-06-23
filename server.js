@@ -5,7 +5,10 @@ const cors = require('cors');
 const { exec } = require('child_process');
 
 const app = express();
-const PORT = 3000;
+
+// Parse command line arguments
+const argv = require('minimist')(process.argv.slice(2));
+const PORT = argv.port || 3000; // Use port from command line or default to 3000
 
 // Enable CORS for all routes
 app.use(cors());
