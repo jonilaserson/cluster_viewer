@@ -39,6 +39,7 @@ let filteredClusters = []; // Store filtered clusters
 
 // Event listeners
 csvFileInput.addEventListener('change', handleFileUpload);
+loadBtn?.addEventListener('click', handleFileUpload); // For backward compatibility
 prevBtn.addEventListener('click', showPreviousPage);
 nextBtn.addEventListener('click', showNextPage);
 thumbnailSizeSlider.addEventListener('input', updateThumbnailSize);
@@ -526,7 +527,8 @@ function displayCluster(cluster, isZoomedIn) {
         // Use local path but extract just the filename for src
         const filename = extractFilename(imageObj.path);
         img.setAttribute('data-full-path', imageObj.path);
-        img.src = `/images/${filename}`;
+        // Use the full path directly
+        img.src = `/images/${encodeURIComponent(imageObj.path)}`;
         img.alt = `Image from cluster ${cluster.id}`;
         img.onerror = function() {
             this.src = 'data:image/svg+xml;charset=utf-8,%3Csvg xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22 viewBox%3D%220 0 100 100%22%3E%3Ctext x%3D%2250%25%22 y%3D%2250%25%22 dominant-baseline%3D%22middle%22 text-anchor%3D%22middle%22%3EImage Not Found%3C%2Ftext%3E%3C%2Fsvg%3E';

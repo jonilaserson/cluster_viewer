@@ -24,14 +24,9 @@ A web application for browsing images grouped by their component (cluster ID) fr
    npm install
    ```
 
-2. Start the server (with optional CSV file path):
+2. Start the server:
    ```
    npm start
-   ```
-
-   Or specify a custom CSV file path:
-   ```
-   node server.js /path/to/your/csv/file.csv
    ```
 
 3. Open your browser and navigate to:
