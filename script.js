@@ -3,6 +3,12 @@ let allClusters = [];
 let currentPage = 0;
 const clustersPerPage = 30; // Increased from 10 to 30 clusters per page
 let selectedClusterId = null; // Track the currently selected cluster
+
+// Variables for verified clusters
+let verifiedClusters = new Set(); // Set of verified cluster IDs
+let nextVerifiedClusterId = 10000; // Start verified cluster IDs from a high number to avoid conflicts
+let originalToVerifiedMap = new Map(); // Map from image path to verified cluster ID
+let imageVerificationStatus = new Map(); // Map from image path to verification status
 let selectedClusterIndex = -1; // Track the index of the selected cluster
 
 // DOM elements
@@ -23,6 +29,7 @@ const applyQueryBtn = document.getElementById('applyQueryBtn');
 const clearQueryBtn = document.getElementById('clearQueryBtn');
 const filterClustersBtn = document.getElementById('filterClustersBtn');
 const queryMatchCountElement = document.getElementById('queryMatchCount');
+const exportCsvBtn = document.getElementById('exportCsvBtn');
 
 // Store all available columns from CSV
 let availableColumns = [];
@@ -38,11 +45,16 @@ thumbnailSizeSlider.addEventListener('input', updateThumbnailSize);
 applyQueryBtn.addEventListener('click', applyQuery);
 clearQueryBtn.addEventListener('click', clearQuery);
 filterClustersBtn.addEventListener('click', filterClusters);
+exportCsvBtn.addEventListener('click', exportVerifiedCsv);
 queryInput.addEventListener('keyup', function(event) {
     if (event.key === 'Enter') {
         applyQuery();
     }
 });
+
+// Variables for modal image navigation
+let currentImageIndex = -1;
+let currentClusterImages = [];
 
 // Create modal elements for image preview
 const modal = document.createElement('div');
@@ -56,10 +68,57 @@ closeBtn.className = 'close';
 closeBtn.innerHTML = '&times;';
 closeBtn.onclick = () => modal.style.display = 'none';
 
+// Add navigation buttons
+const modalPrevBtn = document.createElement('span');
+modalPrevBtn.className = 'modal-nav prev';
+modalPrevBtn.innerHTML = '&#10094;';
+modalPrevBtn.onclick = () => navigateModalImage(-1);
+
+const modalNextBtn = document.createElement('span');
+modalNextBtn.className = 'modal-nav next';
+modalNextBtn.innerHTML = '&#10095;';
+modalNextBtn.onclick = () => navigateModalImage(1);
+
 modal.appendChild(closeBtn);
+modal.appendChild(modalPrevBtn);
+modal.appendChild(modalNextBtn);
 modal.appendChild(modalImg);
 modal.appendChild(modalCaption);
 document.body.appendChild(modal);
+
+// Add keyboard event listener for modal navigation
+document.addEventListener('keydown', function(event) {
+    if (modal.style.display === 'block') {
+        switch(event.key) {
+            case 'ArrowLeft':
+                navigateModalImage(-1);
+                event.preventDefault();
+                event.stopPropagation(); // Stop event from reaching other handlers
+                return false; // Prevent default and stop propagation
+            case 'ArrowRight':
+                navigateModalImage(1);
+                event.preventDefault();
+                event.stopPropagation(); // Stop event from reaching other handlers
+                return false; // Prevent default and stop propagation
+            case 'Escape':
+                modal.style.display = 'none';
+                event.preventDefault();
+                event.stopPropagation(); // Stop event from reaching other handlers
+                return false; // Prevent default and stop propagation
+        }
+    }
+}, true); // Use capture phase to handle event before other listeners
+
+// Function to navigate between images in the modal
+function navigateModalImage(direction) {
+    if (currentClusterImages.length === 0) return;
+
+    currentImageIndex = (currentImageIndex + direction + currentClusterImages.length) % currentClusterImages.length;
+    const newImage = currentClusterImages[currentImageIndex];
+
+    modalImg.src = newImage.src;
+    modalCaption.textContent = newImage.dataset.fullPath;
+}
 
 // Handle file upload
 function handleFileUpload() {
@@ -335,6 +394,10 @@ function displayCurrentPage() {
 function displayCluster(cluster, isZoomedIn) {
     const clusterElement = document.createElement('div');
     clusterElement.className = isZoomedIn ? 'cluster zoomed-in' : 'cluster';
+    clusterElement.dataset.clusterId = cluster.id;
+
+    // Check if this is a verified cluster
+    const isVerified = verifiedClusters.has(cluster.id);
 
     // Create cluster header
     const headerElement = document.createElement('div');
@@ -343,9 +406,15 @@ function displayCluster(cluster, isZoomedIn) {
     headerElement.style.justifyContent = 'space-between';
     headerElement.style.alignItems = 'center';
 
+    // Apply verified styling if needed
+    if (isVerified) {
+        headerElement.style.backgroundColor = '#ffcccc'; // Reddish background
+        headerElement.classList.add('verified-cluster');
+    }
+
     // Create title element
     const titleElement = document.createElement('h3');
-    titleElement.innerHTML = `Cluster ${cluster.id} <span style="font-size: 0.8em; font-weight: normal;">[${cluster.paths.length} images]</span>`;
+    titleElement.innerHTML = `${isVerified ? '✓ ' : ''}Cluster ${cluster.id} <span style="font-size: 0.8em; font-weight: normal;">[${cluster.paths.length} images]</span>`;
 
     // Add title to header
     headerElement.appendChild(titleElement);
@@ -358,19 +427,62 @@ function displayCluster(cluster, isZoomedIn) {
             displayCurrentPage();
         });
     } else {
-        // Add back button to header when in zoomed-in mode
+        // Create buttons container
+        const buttonsContainer = document.createElement('div');
+        buttonsContainer.style.display = 'flex';
+        buttonsContainer.style.gap = '10px';
+        buttonsContainer.style.marginLeft = 'auto'; // Push to right side
+
+        // Add select all checkbox
+        const selectAllContainer = document.createElement('div');
+        selectAllContainer.style.display = 'flex';
+        selectAllContainer.style.alignItems = 'center';
+        selectAllContainer.style.marginRight = '10px';
+
+        const selectAllCheckbox = document.createElement('input');
+        selectAllCheckbox.type = 'checkbox';
+        selectAllCheckbox.id = `select-all-${cluster.id}`;
+        selectAllCheckbox.className = 'select-all-checkbox';
+
+        const selectAllLabel = document.createElement('label');
+        selectAllLabel.htmlFor = `select-all-${cluster.id}`;
+        selectAllLabel.textContent = 'Select All';
+        selectAllLabel.style.marginLeft = '5px';
+
+        selectAllCheckbox.addEventListener('change', function() {
+            const checkboxes = document.querySelectorAll('.image-checkbox');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = this.checked;
+            });
+            updateVerifyButtonState();
+        });
+
+        selectAllContainer.appendChild(selectAllCheckbox);
+        selectAllContainer.appendChild(selectAllLabel);
+        buttonsContainer.appendChild(selectAllContainer);
+
+        // Add export to verified cluster button
+        const verifySelectedBtn = document.createElement('button');
+        verifySelectedBtn.textContent = 'Export to verified cluster';
+        verifySelectedBtn.className = 'verify-selected-btn';
+        verifySelectedBtn.id = 'verifySelectedBtn';
+        verifySelectedBtn.disabled = true; // Initially disabled
+        verifySelectedBtn.addEventListener('click', () => verifySelectedImages(cluster));
+        buttonsContainer.appendChild(verifySelectedBtn);
+
+        // Add back button
         const backButton = document.createElement('button');
         backButton.textContent = '← Back to All Clusters';
         backButton.className = 'back-button';
-        backButton.style.marginLeft = 'auto'; // Push to right side
         backButton.addEventListener('click', () => {
             selectedClusterId = null;
             selectedClusterIndex = -1;
             displayCurrentPage();
         });
+        buttonsContainer.appendChild(backButton);
 
-        // Add back button to header
-        headerElement.appendChild(backButton);
+        // Add buttons container to header
+        headerElement.appendChild(buttonsContainer);
     }
 
     clusterElement.appendChild(headerElement);
@@ -429,10 +541,20 @@ function displayCluster(cluster, isZoomedIn) {
 
         // Add click event for image preview
         img.addEventListener('click', function() {
+            // Set the current image and cluster for navigation
+            currentClusterImages = Array.from(
+                document.querySelectorAll(`.cluster[data-cluster-id="${cluster.id}"] img`)
+            );
+            currentImageIndex = currentClusterImages.indexOf(this);
+
+            // Set the modal content
             modalImg.src = this.src;
             modalCaption.textContent = imageObj.path;
             modal.style.display = 'block';
         });
+
+        // Store the full path for navigation
+        img.dataset.fullPath = imageObj.path;
 
         // Create path label
         const pathLabel = document.createElement('div');
@@ -465,10 +587,27 @@ function displayCluster(cluster, isZoomedIn) {
 
         imageContainer.appendChild(infoContainer);
 
-        // Create checkbox for future feature
+        // Create checkbox for image selection
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
         checkbox.className = 'image-checkbox';
+        checkbox.dataset.imagePath = imageObj.path;
+
+        // Make checkbox visible in zoom-in mode
+        if (isZoomedIn) {
+            checkbox.style.display = 'block';
+            checkbox.style.position = 'absolute';
+            checkbox.style.top = '5px';
+            checkbox.style.left = '5px';
+            checkbox.style.width = '20px';
+            checkbox.style.height = '20px';
+            checkbox.style.zIndex = '10';
+        }
+
+        // Add event listener to update the verify button state when checkboxes are clicked
+        if (isZoomedIn) {
+            checkbox.addEventListener('change', updateVerifyButtonState);
+        }
 
         // Add elements to container
         imageContainer.appendChild(img);
@@ -723,8 +862,8 @@ function navigateToAdjacentCluster(direction) {
 
 // Add keyboard navigation for cluster browsing
 document.addEventListener('keydown', function(event) {
-    // Only handle keyboard navigation when in zoom-in mode
-    if (selectedClusterId !== null) {
+    // Only handle keyboard navigation when in zoom-in mode AND modal is not open
+    if (selectedClusterId !== null && modal.style.display !== 'block') {
         switch(event.key) {
             case 'ArrowLeft':
                 // Navigate to previous cluster
@@ -749,6 +888,118 @@ document.addEventListener('keydown', function(event) {
         }
     }
 });
+
+// Function to update the verify button state based on checkbox selection
+function updateVerifyButtonState() {
+    const selectedCheckboxes = document.querySelectorAll('.image-checkbox:checked');
+    const verifyBtn = document.getElementById('verifySelectedBtn');
+
+    if (verifyBtn) {
+        // Enable the button only if 2 or more images are selected
+        verifyBtn.disabled = selectedCheckboxes.length < 2;
+    }
+}
+
+// Function to verify selected images
+function verifySelectedImages(cluster) {
+    // Get all selected images in the current cluster
+    const selectedCheckboxes = document.querySelectorAll('.image-checkbox:checked');
+
+    if (selectedCheckboxes.length < 2) {
+        return; // Button should be disabled anyway, but just in case
+    }
+
+    // Get the selected image paths
+    const selectedImagePaths = new Set();
+    selectedCheckboxes.forEach(checkbox => {
+        const imagePath = checkbox.dataset.imagePath;
+        selectedImagePaths.add(imagePath);
+    });
+
+    // Find the original cluster index
+    const originalClusterIndex = allClusters.findIndex(c => c.id === cluster.id);
+
+    if (originalClusterIndex !== -1) {
+        // Separate selected and non-selected images
+        const selectedImages = [];
+        const nonSelectedImages = [];
+
+        cluster.paths.forEach(image => {
+            if (selectedImagePaths.has(image.path)) {
+                // Add to selected images
+                selectedImages.push(image);
+                // Mark as verified
+                imageVerificationStatus.set(image.path, true);
+            } else {
+                // Add to non-selected images
+                nonSelectedImages.push(image);
+            }
+        });
+
+        // Mark the original cluster as verified
+        verifiedClusters.add(cluster.id);
+
+        // Update the original cluster with selected images
+        allClusters[originalClusterIndex].paths = selectedImages;
+
+        // Only create a new cluster if there are non-selected images
+        if (nonSelectedImages.length > 0) {
+            // Create a new non-verified cluster for the remaining images
+            const newClusterId = `remaining-${nextVerifiedClusterId++}`;
+
+            const newCluster = {
+                id: newClusterId,
+                paths: nonSelectedImages
+            };
+
+            // Add the new cluster to the end of allClusters (not sorted)
+            allClusters.push(newCluster);
+        }
+    }
+
+    // Update UI
+    displayCurrentPage();
+}
+
+// Function verifyEntireCluster removed as it's no longer needed
+
+// Function to export verified CSV
+function exportVerifiedCsv() {
+    // Create CSV content with updated cluster assignments and verification status
+    let csvContent = 'local_path,component,is_verified\n';
+
+    // Process all images
+    allClusters.forEach(cluster => {
+        const isClusterVerified = verifiedClusters.has(cluster.id);
+
+        cluster.paths.forEach(image => {
+            const originalPath = image.path;
+            const component = cluster.id;
+            // An image is verified if it's in a verified cluster
+            const isVerified = isClusterVerified || imageVerificationStatus.get(originalPath) ? 'true' : 'false';
+
+            csvContent += `${originalPath},${component},${isVerified}\n`;
+        });
+    });
+
+    // Create and download the CSV file
+    downloadCsv(csvContent, 'verified_clusters.csv');
+}
+
+// Helper function to download CSV
+function downloadCsv(content, filename) {
+    const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
 
 // Function to filter clusters based on query matches
 function filterClusters() {
