@@ -30,13 +30,20 @@ h1, h2 {
     margin-bottom: 10px;
 }
 
+/* Top Panels Layout */
+.top-panels {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
 /* Upload Section */
 .upload-section {
     background-color: #fff;
     padding: 20px;
     border-radius: 5px;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-    margin-bottom: 20px;
+    flex: 1;
 }
 
 input[type="file"] {
@@ -60,7 +67,15 @@ button:hover {
 }
 
 /* Stats and Controls Sections */
-.stats-section, .controls-section {
+.stats-section {
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    flex: 1;
+}
+
+.controls-section {
     background-color: #fff;
     padding: 15px;
     border-radius: 5px;
@@ -384,7 +399,15 @@ button:hover {
     border-left: 5px solid #ff5252;
 }
 
-/* Removed verified-image styling */
+/* Remainder cluster styling */
+.remainder-label {
+    background-color: #f0ad4e;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 0.8em;
+    margin-left: 8px;
+}
 
 /* Verification controls */
 .verification-controls {

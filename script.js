@@ -38,7 +38,7 @@ let isFilteringClusters = false; // Track whether we're filtering clusters
 let filteredClusters = []; // Store filtered clusters
 
 // Event listeners
-loadBtn.addEventListener('click', handleFileUpload);
+csvFileInput.addEventListener('change', handleFileUpload);
 prevBtn.addEventListener('click', showPreviousPage);
 nextBtn.addEventListener('click', showNextPage);
 thumbnailSizeSlider.addEventListener('input', updateThumbnailSize);
@@ -414,7 +414,16 @@ function displayCluster(cluster, isZoomedIn) {
 
     // Create title element
     const titleElement = document.createElement('h3');
-    titleElement.innerHTML = `${isVerified ? '✓ ' : ''}Cluster ${cluster.id} <span style="font-size: 0.8em; font-weight: normal;">[${cluster.paths.length} images]</span>`;
+
+    // Check if this is a remainder cluster
+    const parentId = cluster.parentClusterId;
+
+    // Create the title with appropriate indicators
+    if (parentId) {
+        titleElement.innerHTML = `${isVerified ? '✓ ' : ''}Cluster ${cluster.id} <span style="font-size: 0.8em; font-weight: normal;">[${cluster.paths.length} images] <span class="remainder-label">Remainder of Cluster ${parentId}</span></span>`;
+    } else {
+        titleElement.innerHTML = `${isVerified ? '✓ ' : ''}Cluster ${cluster.id} <span style="font-size: 0.8em; font-weight: normal;">[${cluster.paths.length} images]</span>`;
+    }
 
     // Add title to header
     headerElement.appendChild(titleElement);
@@ -944,16 +953,27 @@ function verifySelectedImages(cluster) {
 
         // Only create a new cluster if there are non-selected images
         if (nonSelectedImages.length > 0) {
-            // Create a new non-verified cluster for the remaining images
-            const newClusterId = `remaining-${nextVerifiedClusterId++}`;
+            // Create a new cluster with a new ID for the remaining images
+            const newClusterId = `${nextVerifiedClusterId++}`;
 
             const newCluster = {
                 id: newClusterId,
-                paths: nonSelectedImages
+                paths: nonSelectedImages,
+                parentClusterId: cluster.id // Track the relationship
             };
 
-            // Add the new cluster to the end of allClusters (not sorted)
-            allClusters.push(newCluster);
+            // Insert the new cluster right after the original one
+            allClusters.splice(originalClusterIndex + 1, 0, newCluster);
+
+            // If we're filtering clusters, check if we need to update the filtered list
+            if (isFilteringClusters) {
+                // If the original cluster is in the filtered list, add the new cluster too
+                const originalInFiltered = filteredClusters.findIndex(c => c.id === cluster.id);
+                if (originalInFiltered !== -1) {
+                    // Insert the new cluster right after the original one in the filtered list
+                    filteredClusters.splice(originalInFiltered + 1, 0, newCluster);
+                }
+            }
         }
     }
 

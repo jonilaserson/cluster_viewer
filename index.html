@@ -12,17 +12,18 @@
             <h1>Image Cluster Viewer</h1>
         </header>
 
-        <div class="upload-section">
-            <h2>Upload CSV File</h2>
-            <p>Select a CSV file with columns "local_path" (path to image) and "component" (cluster ID)</p>
-            <input type="file" id="csvFile" accept=".csv">
-            <button id="loadBtn">Load Clusters</button>
-        </div>
+        <div class="top-panels">
+            <div class="upload-section">
+                <h2>Upload CSV File</h2>
+                <p>Select a CSV file with columns "local_path" (path to image) and "component" (cluster ID)</p>
+                <input type="file" id="csvFile" accept=".csv" style="margin-bottom: 15px;">
+            </div>
 
-        <div class="stats-section" id="statsSection" style="display: none;">
-            <h2>Cluster Statistics</h2>
-            <p id="totalClusters">Total clusters: 0</p>
-            <p id="totalImages">Total images: 0</p>
+            <div class="stats-section" id="statsSection" style="display: none;">
+                <h2>Cluster Statistics</h2>
+                <p id="totalClusters">Total clusters: 0</p>
+                <p id="totalImages">Total images: 0</p>
+            </div>
         </div>
 
         <div class="controls-section" id="controlsSection" style="display: none;">
