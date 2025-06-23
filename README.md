@@ -1,58 +1,57 @@
 # Image Cluster Viewer
 
-A web application for browsing images grouped by their component (cluster ID) from a CSV file.
+A web application for browsing, analyzing, and verifying images grouped by cluster ID from a CSV file.
 
-## Features
+## Key Features
 
-- Upload a CSV file with columns "local_path" (path to image) and "component" (cluster ID)
-- Browse images grouped by component/cluster ID
-- Sort components by the number of images they contain (most to least)
-- Exclude component with ID -1
-- Show a batch of ~10 clusters at a time
-- Quick navigation through clusters
-- Adjust thumbnail size with a slider (up to 420px)
-- Display additional information like condition and hashed case ID (first 5 letters)
-- Click on a cluster header to "zoom in" and view only that cluster
-- Uses full screen width for better visibility
-- When zoomed in, the selected cluster expands to take the entire available space
-- Zoomed-in view automatically uses larger thumbnails (420px)
+### Cluster Navigation and Visualization
+- Browse images grouped by cluster ID with intuitive navigation
+- Sort clusters by size (most images to least)
+- View clusters in batches with pagination controls
+- Click anywhere on a cluster header to zoom in on that specific cluster
+- Adjust thumbnail size with a slider for optimal viewing
+
+### Image Analysis
+- Query images using JavaScript expressions (e.g., "bucket < 15")
+- Mark matching images that satisfy query conditions
+- Filter to show only clusters containing matching images
+- View image metadata including condition and case ID information
+
+### Verification Workflow
+- Select images within clusters for verification
+- Export verified clusters to a new CSV file
+- Track verification status with visual indicators
+- Create remainder clusters for unselected images
 
 ## Setup and Usage
 
-1. Install dependencies:
+1. Install and start the server:
    ```
    npm install
-   ```
-
-2. Start the server:
-   ```
    npm start
    ```
 
-3. Open your browser and navigate to:
-   ```
-   http://localhost:3000
-   ```
+2. Open your browser to `http://localhost:3000`
 
-4. Upload the CSV file (`experimental/j_laserson/6k_clustered.csv`) using the file input.
+3. Upload a CSV file with image paths and cluster IDs
 
-5. Browse through the clusters using the navigation buttons.
+4. Explore clusters using the navigation controls
 
 ## CSV File Format
 
-The application expects a CSV file with at least the following columns:
-- `local_path`: Path to the image file
+Required columns:
+- `local_path`: Full path to the image file
 - `component`: Cluster ID (numeric)
 
-Additional columns that will be used if present:
-- `name`: Name of the image
-- `condition`: Medical condition or other classification
-- `hashed_case_id`: Case ID hash (first 5 letters will be displayed)
+Optional columns:
+- `name`: Image name
+- `condition`: Classification or category
+- `hashed_case_id`: Case identifier
+- Any additional columns can be used in queries
 
-## Implementation Details
+## Technical Notes
 
-- The application uses a Node.js Express server to serve the static files and handle image requests
-- Images are served from their absolute paths on the server
-- The frontend is built with vanilla JavaScript, HTML, and CSS
-- Clusters are sorted by the number of images they contain (descending)
-- Clusters with component ID -1 are excluded
+- Built with Node.js Express, vanilla JavaScript, HTML, and CSS
+- Serves images directly from their absolute paths
+- Supports filtering and advanced query expressions
+- Optimized for browsing large sets of clustered images
