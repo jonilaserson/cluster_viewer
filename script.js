@@ -3,6 +3,7 @@ let allClusters = [];
 let currentPage = 0;
 const clustersPerPage = 30; // Increased from 10 to 30 clusters per page
 let selectedClusterId = null; // Track the currently selected cluster
+let selectedClusterIndex = -1; // Track the index of the selected cluster
 
 // DOM elements
 const csvFileInput = document.getElementById('csvFile');
@@ -20,11 +21,14 @@ const sizeValueDisplay = document.getElementById('sizeValue');
 const queryInput = document.getElementById('queryInput');
 const applyQueryBtn = document.getElementById('applyQueryBtn');
 const clearQueryBtn = document.getElementById('clearQueryBtn');
+const filterClustersBtn = document.getElementById('filterClustersBtn');
 const queryMatchCountElement = document.getElementById('queryMatchCount');
 
 // Store all available columns from CSV
 let availableColumns = [];
 let currentQuery = null;
+let isFilteringClusters = false; // Track whether we're filtering clusters
+let filteredClusters = []; // Store filtered clusters
 
 // Event listeners
 loadBtn.addEventListener('click', handleFileUpload);
@@ -33,6 +37,7 @@ nextBtn.addEventListener('click', showNextPage);
 thumbnailSizeSlider.addEventListener('input', updateThumbnailSize);
 applyQueryBtn.addEventListener('click', applyQuery);
 clearQueryBtn.addEventListener('click', clearQuery);
+filterClustersBtn.addEventListener('click', filterClusters);
 queryInput.addEventListener('keyup', function(event) {
     if (event.key === 'Enter') {
         applyQuery();
@@ -155,9 +160,10 @@ function processCSVData(csvData) {
         });
     });
 
-    // Convert to array and sort by cluster size (descending)
+    // Convert to array, filter out clusters with only 1 member, and sort by cluster size (descending)
     allClusters = Array.from(clusterMap.entries())
         .map(([id, paths]) => ({ id, paths }))
+        .filter(cluster => cluster.paths.length > 1) // Filter out clusters with only 1 member
         .sort((a, b) => b.paths.length - a.paths.length);
 
     // Update stats
@@ -201,30 +207,62 @@ function displayCurrentPage() {
     // Clear container
     clustersContainer.innerHTML = '';
 
+    // Get the current set of clusters
+    const clustersToDisplay = isFilteringClusters ? filteredClusters : allClusters;
+
     // If a cluster is selected, only show that cluster
     if (selectedClusterId !== null) {
-        const selectedCluster = allClusters.find(cluster => cluster.id === selectedClusterId);
+        // Find the selected cluster and its index
+        selectedClusterIndex = clustersToDisplay.findIndex(cluster => cluster.id === selectedClusterId);
+        const selectedCluster = selectedClusterIndex >= 0 ? clustersToDisplay[selectedClusterIndex] : null;
+
         if (selectedCluster) {
-            // Add a back button
-            const backButton = document.createElement('button');
-            backButton.textContent = '← Back to All Clusters';
-            backButton.className = 'back-button';
-            backButton.style.marginBottom = '20px';
-            backButton.addEventListener('click', () => {
-                selectedClusterId = null;
-                displayCurrentPage();
-            });
-            clustersContainer.appendChild(backButton);
+            // No longer need a separate navigation container
+
+            // Add keyboard shortcut hint
+            const keyboardHint = document.createElement('div');
+            keyboardHint.className = 'keyboard-hint';
+            keyboardHint.textContent = 'Keyboard shortcuts: ← Previous Cluster | → Next Cluster | ESC Back to All (Use page navigation buttons to navigate between clusters)';
+            keyboardHint.style.opacity = '1';
+            document.body.appendChild(keyboardHint);
+
+            // Fade out the hint after 5 seconds
+            setTimeout(() => {
+                keyboardHint.style.transition = 'opacity 1s';
+                keyboardHint.style.opacity = '0';
+                setTimeout(() => {
+                    keyboardHint.remove();
+                }, 1000);
+            }, 5000);
 
             // Display the selected cluster
             displayCluster(selectedCluster, true);
 
             // Update page info
-            pageInfoElement.textContent = `Viewing Cluster ${selectedClusterId}`;
+            pageInfoElement.textContent = `Viewing Cluster ${selectedClusterId} (${selectedClusterIndex + 1} of ${clustersToDisplay.length})`;
 
-            // Disable navigation buttons when viewing a single cluster
-            prevBtn.disabled = true;
-            nextBtn.disabled = true;
+            // Repurpose main navigation buttons for cluster navigation when in zoom-in mode
+            prevBtn.disabled = selectedClusterIndex <= 0;
+            nextBtn.disabled = selectedClusterIndex >= clustersToDisplay.length - 1;
+
+            // Store original event listeners
+            if (!prevBtn.hasAttribute('data-cluster-mode')) {
+                // Mark buttons as being in cluster mode
+                prevBtn.setAttribute('data-cluster-mode', 'true');
+                nextBtn.setAttribute('data-cluster-mode', 'true');
+
+                // Clone the buttons to remove existing event listeners
+                const newPrevBtn = prevBtn.cloneNode(true);
+                const newNextBtn = nextBtn.cloneNode(true);
+
+                // Replace the original buttons with the clones
+                prevBtn.parentNode.replaceChild(newPrevBtn, prevBtn);
+                nextBtn.parentNode.replaceChild(newNextBtn, nextBtn);
+
+                // Add cluster navigation event listeners to the new buttons
+                document.querySelector('.nav-btn:first-child').addEventListener('click', () => navigateToAdjacentCluster(-1));
+                document.querySelector('.nav-btn:last-child').addEventListener('click', () => navigateToAdjacentCluster(1));
+            }
 
             // Apply the thumbnail size immediately to the zoomed view
             updateThumbnailSize();
@@ -238,21 +276,49 @@ function displayCurrentPage() {
         }
     }
 
+    // We already have clustersToDisplay defined above
+
     // Calculate page bounds for normal view
     const startIdx = currentPage * clustersPerPage;
-    const endIdx = Math.min(startIdx + clustersPerPage, allClusters.length);
+    const endIdx = Math.min(startIdx + clustersPerPage, clustersToDisplay.length);
 
-    // Update page info
-    const totalPages = Math.ceil(allClusters.length / clustersPerPage);
-    pageInfoElement.textContent = `Page ${currentPage + 1} of ${totalPages}`;
+    // Update page info with total cluster count
+    const totalPages = Math.ceil(clustersToDisplay.length / clustersPerPage);
+    const totalClusterCount = clustersToDisplay.length;
 
-    // Enable/disable navigation buttons
+    if (isFilteringClusters) {
+        pageInfoElement.textContent = `Page ${currentPage + 1} of ${totalPages} (${totalClusterCount} matching clusters)`;
+    } else {
+        pageInfoElement.textContent = `Page ${currentPage + 1} of ${totalPages} (${totalClusterCount} clusters)`;
+    }
+
+    // Enable/disable navigation buttons and restore original behavior
     prevBtn.disabled = currentPage === 0;
     nextBtn.disabled = currentPage >= totalPages - 1;
 
+    // If we were in cluster mode before, restore original page navigation
+    const navButtons = document.querySelectorAll('.nav-btn');
+    if (navButtons.length > 0 && navButtons[0].hasAttribute('data-cluster-mode')) {
+        // Clone the buttons to remove existing event listeners
+        const newPrevBtn = navButtons[0].cloneNode(true);
+        const newNextBtn = navButtons[1].cloneNode(true);
+
+        // Remove cluster mode flag
+        newPrevBtn.removeAttribute('data-cluster-mode');
+        newNextBtn.removeAttribute('data-cluster-mode');
+
+        // Replace the buttons
+        navButtons[0].parentNode.replaceChild(newPrevBtn, navButtons[0]);
+        navButtons[1].parentNode.replaceChild(newNextBtn, navButtons[1]);
+
+        // Add page navigation event listeners
+        newPrevBtn.addEventListener('click', showPreviousPage);
+        newNextBtn.addEventListener('click', showNextPage);
+    }
+
     // Display clusters
     for (let i = startIdx; i < endIdx; i++) {
-        const cluster = allClusters[i];
+        const cluster = clustersToDisplay[i];
         displayCluster(cluster, false);
     }
 
@@ -260,6 +326,9 @@ function displayCurrentPage() {
     if (currentQuery) {
         applyHighlightsToVisibleImages();
     }
+
+    // No longer showing a separate filter notice panel
+    // The information is now integrated into the page navigation text
 }
 
 // Display a single cluster
@@ -270,24 +339,58 @@ function displayCluster(cluster, isZoomedIn) {
     // Create cluster header
     const headerElement = document.createElement('div');
     headerElement.className = 'cluster-header';
+    headerElement.style.display = 'flex';
+    headerElement.style.justifyContent = 'space-between';
+    headerElement.style.alignItems = 'center';
+
+    // Create title element
+    const titleElement = document.createElement('h3');
+    titleElement.innerHTML = `Cluster ${cluster.id} <span style="font-size: 0.8em; font-weight: normal;">[${cluster.paths.length} images]</span>`;
+
+    // Add title to header
+    headerElement.appendChild(titleElement);
 
     if (!isZoomedIn) {
         // Make the header clickable to zoom in
-        headerElement.style.cursor = 'pointer';
-        headerElement.addEventListener('click', () => {
+        titleElement.style.cursor = 'pointer';
+        titleElement.addEventListener('click', () => {
             selectedClusterId = cluster.id;
             displayCurrentPage();
         });
+    } else {
+        // Add back button to header when in zoomed-in mode
+        const backButton = document.createElement('button');
+        backButton.textContent = '← Back to All Clusters';
+        backButton.className = 'back-button';
+        backButton.style.marginLeft = 'auto'; // Push to right side
+        backButton.addEventListener('click', () => {
+            selectedClusterId = null;
+            selectedClusterIndex = -1;
+            displayCurrentPage();
+        });
+
+        // Add back button to header
+        headerElement.appendChild(backButton);
     }
 
-    headerElement.innerHTML = `
-        <h3>Cluster ${cluster.id} <span style="font-size: 0.8em; font-weight: normal;">[${cluster.paths.length} images]</span></h3>
-    `;
     clusterElement.appendChild(headerElement);
 
     // Create images grid
     const imagesGrid = document.createElement('div');
     imagesGrid.className = 'images-grid custom-thumbnail-size';
+
+    // Get current thumbnail size from slider
+    const size = thumbnailSizeSlider.value;
+
+    // Apply grid template columns directly
+    if (!isZoomedIn) {
+        imagesGrid.style.gridTemplateColumns = `repeat(auto-fill, minmax(${size}px, 1fr))`;
+    } else {
+        imagesGrid.style.display = 'flex';
+        imagesGrid.style.flexWrap = 'wrap';
+        imagesGrid.style.justifyContent = 'flex-start';
+        imagesGrid.style.gap = '20px';
+    }
 
     // Add images to grid (already sorted by hashed_case_id during CSV processing)
     cluster.paths.forEach(imageObj => {
@@ -308,6 +411,21 @@ function displayCluster(cluster, isZoomedIn) {
             this.src = 'data:image/svg+xml;charset=utf-8,%3Csvg xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22 viewBox%3D%220 0 100 100%22%3E%3Ctext x%3D%2250%25%22 y%3D%2250%25%22 dominant-baseline%3D%22middle%22 text-anchor%3D%22middle%22%3EImage Not Found%3C%2Ftext%3E%3C%2Fsvg%3E';
             this.style.background = '#f0f0f0';
         };
+
+        // Apply size directly based on zoom state
+        if (isZoomedIn) {
+            const zoomedSize = 420;
+            img.style.width = `${zoomedSize}px`;
+            img.style.height = 'auto';
+            img.style.maxWidth = '100%';
+            img.style.objectFit = 'contain';
+            imageContainer.style.width = `${zoomedSize}px`;
+            imageContainer.style.maxWidth = `${zoomedSize}px`;
+        } else {
+            img.style.width = `${size}px`;
+            img.style.height = `${size}px`;
+            img.style.objectFit = 'cover';
+        }
 
         // Add click event for image preview
         img.addEventListener('click', function() {
@@ -492,6 +610,13 @@ function clearQuery() {
             imageObj.matchesQuery = false;
         });
     });
+
+    // Reset filtering if active
+    if (isFilteringClusters) {
+        isFilteringClusters = false;
+        currentPage = 0;
+        displayCurrentPage();
+    }
 }
 
 // Helper function to clear query highlights
@@ -576,5 +701,103 @@ function updateThumbnailSize() {
             img.style.height = `${size}px`;
             img.style.objectFit = 'cover';
         });
+    }
+}
+
+// Function to navigate to adjacent cluster (prev/next)
+function navigateToAdjacentCluster(direction) {
+    // Determine which clusters to display (filtered or all)
+    const clustersToDisplay = isFilteringClusters ? filteredClusters : allClusters;
+
+    // Calculate new index
+    const newIndex = selectedClusterIndex + direction;
+
+    // Check if the new index is valid
+    if (newIndex >= 0 && newIndex < clustersToDisplay.length) {
+        // Update selected cluster
+        selectedClusterId = clustersToDisplay[newIndex].id;
+        selectedClusterIndex = newIndex;
+        displayCurrentPage();
+    }
+}
+
+// Add keyboard navigation for cluster browsing
+document.addEventListener('keydown', function(event) {
+    // Only handle keyboard navigation when in zoom-in mode
+    if (selectedClusterId !== null) {
+        switch(event.key) {
+            case 'ArrowLeft':
+                // Navigate to previous cluster
+                navigateToAdjacentCluster(-1);
+                event.preventDefault();
+                break;
+            case 'ArrowRight':
+                // Navigate to next cluster
+                navigateToAdjacentCluster(1);
+                event.preventDefault();
+                break;
+            case 'Escape':
+                // Exit zoom-in mode
+                selectedClusterId = null;
+                selectedClusterIndex = -1;
+                displayCurrentPage();
+                // Remove keyboard hint if it exists
+                const hint = document.querySelector('.keyboard-hint');
+                if (hint) hint.remove();
+                event.preventDefault();
+                break;
+        }
+    }
+});
+
+// Function to filter clusters based on query matches
+function filterClusters() {
+    const queryString = queryInput.value.trim();
+    if (!queryString) {
+        alert('Please enter a query first');
+        return;
+    }
+
+    // Make sure the query is applied first
+    if (!currentQuery || currentQuery !== queryString) {
+        applyQuery();
+    }
+
+    // Filter clusters that have at least one image matching the query
+    filteredClusters = allClusters.filter(cluster => {
+        return cluster.paths.some(imageObj => imageObj.matchesQuery === true);
+    });
+
+    if (filteredClusters.length === 0) {
+        alert('No clusters match the query');
+        return;
+    }
+
+    // Set filtering mode
+    isFilteringClusters = true;
+
+    // Reset to first page and display filtered clusters
+    currentPage = 0;
+    displayCurrentPage();
+
+    // Update button appearance to show active state
+    filterClustersBtn.style.backgroundColor = '#4CAF50';
+    filterClustersBtn.textContent = 'Filtering Active';
+
+    // Add a clear filter button next to the filter button if it doesn't exist
+    if (!document.getElementById('clearFilterBtn')) {
+        const clearFilterBtn = document.createElement('button');
+        clearFilterBtn.id = 'clearFilterBtn';
+        clearFilterBtn.textContent = 'Clear Filter';
+        clearFilterBtn.style.marginLeft = '5px';
+        clearFilterBtn.addEventListener('click', () => {
+            isFilteringClusters = false;
+            filterClustersBtn.style.backgroundColor = '';
+            filterClustersBtn.textContent = 'Filter Clusters';
+            clearFilterBtn.remove();
+            currentPage = 0;
+            displayCurrentPage();
+        });
+        filterClustersBtn.parentNode.insertBefore(clearFilterBtn, filterClustersBtn.nextSibling);
     }
 }
