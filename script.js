@@ -430,9 +430,9 @@ function displayCluster(cluster, isZoomedIn) {
     headerElement.appendChild(titleElement);
 
     if (!isZoomedIn) {
-        // Make the header clickable to zoom in
-        titleElement.style.cursor = 'pointer';
-        titleElement.addEventListener('click', () => {
+        // Make the entire header clickable to zoom in
+        headerElement.style.cursor = 'pointer';
+        headerElement.addEventListener('click', () => {
             selectedClusterId = cluster.id;
             displayCurrentPage();
         });
