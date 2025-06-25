@@ -16,7 +16,17 @@
             <div class="upload-section">
                 <h2>Upload CSV File</h2>
                 <p>Select a CSV file with columns "local_path" (path to image) and "component" (cluster ID)</p>
-                <input type="file" id="csvFile" accept=".csv" style="margin-bottom: 15px;">
+
+                <div class="file-input-row">
+                    <div class="file-input-container">
+                        <input type="file" id="csvFile" accept=".csv">
+                    </div>
+                    <div class="path-prefix-container">
+                        <label for="pathPrefix">Path Prefix:</label>
+                        <input type="text" id="pathPrefix" placeholder="e.g. /mnt/coreflow/data">
+                        <span class="help-text">Base path for images</span>
+                    </div>
+                </div>
             </div>
 
             <div class="stats-section" id="statsSection" style="display: none;">

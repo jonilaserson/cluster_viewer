@@ -14,6 +14,7 @@ let selectedClusterIndex = -1; // Track the index of the selected cluster
 // DOM elements
 const csvFileInput = document.getElementById('csvFile');
 const loadBtn = document.getElementById('loadBtn');
+const pathPrefixInput = document.getElementById('pathPrefix');
 const clustersContainer = document.getElementById('clustersContainer');
 const statsSection = document.getElementById('statsSection');
 const controlsSection = document.getElementById('controlsSection');
@@ -132,13 +133,15 @@ function handleFileUpload() {
     const reader = new FileReader();
     reader.onload = function(e) {
         const csvData = e.target.result;
-        processCSVData(csvData);
+        const pathPrefix = pathPrefixInput.value.trim();
+        console.log("Using path prefix:", pathPrefix || "None");
+        processCSVData(csvData, pathPrefix);
     };
     reader.readAsText(file);
 }
 
 // Process CSV data
-function processCSVData(csvData) {
+function processCSVData(csvData, pathPrefix = '') {
     // Parse CSV
     const lines = csvData.split('\n');
     const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
@@ -171,15 +174,24 @@ function processCSVData(csvData) {
 
         if (fields.length <= Math.max(pathIndex, componentIndex)) continue;
 
-        const path = fields[pathIndex].trim();
+        let path = fields[pathIndex].trim();
         const component = fields[componentIndex].trim();
 
         // Skip component with ID -1
         if (component === '-1') continue;
 
+        // If a path prefix is provided, add it to the path
+        // regardless of whether the path is absolute or not
+        if (pathPrefix) {
+            // Remove any trailing slash from prefix and leading slash from path to avoid double slashes
+            const cleanPrefix = pathPrefix.endsWith('/') ? pathPrefix.slice(0, -1) : pathPrefix;
+            const cleanPath = path.startsWith('/') ? path.slice(1) : path;
+            path = `${cleanPrefix}/${cleanPath}`;
+        }
+
         // Create image object with all available info
         const imageObj = {
-            path: path,
+            path: path, // This now includes the prefix if one was provided
             name: nameIndex !== -1 ? fields[nameIndex].trim() : extractFilename(path),
             condition: conditionIndex !== -1 ? fields[conditionIndex].trim() : null,
             hashedCaseId: hashedCaseIdIndex !== -1 ? fields[hashedCaseIdIndex].trim().substring(0, 5) : null
@@ -527,7 +539,7 @@ function displayCluster(cluster, isZoomedIn) {
         // Use local path but extract just the filename for src
         const filename = extractFilename(imageObj.path);
         img.setAttribute('data-full-path', imageObj.path);
-        // Use the full path directly
+        // Use the full path directly without any prefix
         img.src = `/images/${encodeURIComponent(imageObj.path)}`;
         img.alt = `Image from cluster ${cluster.id}`;
         img.onerror = function() {
