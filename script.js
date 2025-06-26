@@ -155,6 +155,7 @@ function processCSVData(csvData, pathPrefix = '') {
     const conditionIndex = headers.indexOf('condition');
     const nameIndex = headers.indexOf('name');
     const hashedCaseIdIndex = headers.indexOf('hashed_case_id');
+    const isVerifiedIndex = headers.indexOf('is_verified');
 
     if (pathIndex === -1 || componentIndex === -1) {
         alert('CSV must contain "local_path" and "component" columns');
@@ -197,6 +198,12 @@ function processCSVData(csvData, pathPrefix = '') {
             hashedCaseId: hashedCaseIdIndex !== -1 ? fields[hashedCaseIdIndex].trim().substring(0, 5) : null
         };
 
+        // Check if this image is verified
+        if (isVerifiedIndex !== -1) {
+            const isVerified = fields[isVerifiedIndex].trim().toLowerCase();
+            imageObj.isVerified = (isVerified === 'true' || isVerified === '1' || isVerified === 'yes');
+        }
+
         // Store all columns from CSV for query filtering
         headers.forEach((header, index) => {
             if (index < fields.length) {
@@ -237,6 +244,19 @@ function processCSVData(csvData, pathPrefix = '') {
         .map(([id, paths]) => ({ id, paths }))
         .filter(cluster => cluster.paths.length > 1) // Filter out clusters with only 1 member
         .sort((a, b) => b.paths.length - a.paths.length);
+
+    // Check for clusters where all images are verified
+    if (isVerifiedIndex !== -1) {
+        allClusters.forEach(cluster => {
+            // Check if all images in this cluster are verified
+            const allVerified = cluster.paths.every(image => image.isVerified === true);
+            if (allVerified) {
+                // Mark this cluster as verified
+                verifiedClusters.add(cluster.id);
+                console.log(`Cluster ${cluster.id} marked as verified because all images are verified`);
+            }
+        });
+    }
 
     // Update stats
     totalClustersElement.textContent = `Total clusters: ${allClusters.length}`;
@@ -455,6 +475,24 @@ function displayCluster(cluster, isZoomedIn) {
         buttonsContainer.style.gap = '10px';
         buttonsContainer.style.marginLeft = 'auto'; // Push to right side
 
+        // Add mark as verified cluster button
+        const verifySelectedBtn = document.createElement('button');
+        verifySelectedBtn.textContent = 'Mark as Verified Cluster';
+        verifySelectedBtn.className = 'verify-selected-btn';
+        verifySelectedBtn.id = 'verifySelectedBtn';
+        verifySelectedBtn.disabled = true; // Initially disabled
+        verifySelectedBtn.addEventListener('click', () => verifySelectedImages(cluster));
+        buttonsContainer.appendChild(verifySelectedBtn);
+
+        // Add unverify button if the cluster is verified (moved before select all)
+        if (isVerified) {
+            const unverifyBtn = document.createElement('button');
+            unverifyBtn.textContent = 'Unverify';
+            unverifyBtn.className = 'unverify-btn';
+            unverifyBtn.addEventListener('click', () => unverifyCluster(cluster));
+            buttonsContainer.appendChild(unverifyBtn);
+        }
+
         // Add select all checkbox
         const selectAllContainer = document.createElement('div');
         selectAllContainer.style.display = 'flex';
@@ -482,15 +520,6 @@ function displayCluster(cluster, isZoomedIn) {
         selectAllContainer.appendChild(selectAllCheckbox);
         selectAllContainer.appendChild(selectAllLabel);
         buttonsContainer.appendChild(selectAllContainer);
-
-        // Add export to verified cluster button
-        const verifySelectedBtn = document.createElement('button');
-        verifySelectedBtn.textContent = 'Export to verified cluster';
-        verifySelectedBtn.className = 'verify-selected-btn';
-        verifySelectedBtn.id = 'verifySelectedBtn';
-        verifySelectedBtn.disabled = true; // Initially disabled
-        verifySelectedBtn.addEventListener('click', () => verifySelectedImages(cluster));
-        buttonsContainer.appendChild(verifySelectedBtn);
 
         // Add back button
         const backButton = document.createElement('button');
@@ -539,8 +568,10 @@ function displayCluster(cluster, isZoomedIn) {
         // Use local path but extract just the filename for src
         const filename = extractFilename(imageObj.path);
         img.setAttribute('data-full-path', imageObj.path);
-        // Use the full path directly without any prefix
-        img.src = `/images/${encodeURIComponent(imageObj.path)}`;
+        // Don't encode the slashes in the path to preserve absolute paths
+        // Replace encodeURIComponent with a custom encoding that preserves slashes
+        const encodedPath = imageObj.path.split('/').map(segment => encodeURIComponent(segment)).join('/');
+        img.src = `/images/${encodedPath}`;
         img.alt = `Image from cluster ${cluster.id}`;
         img.onerror = function() {
             this.src = 'data:image/svg+xml;charset=utf-8,%3Csvg xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22 viewBox%3D%220 0 100 100%22%3E%3Ctext x%3D%2250%25%22 y%3D%2250%25%22 dominant-baseline%3D%22middle%22 text-anchor%3D%22middle%22%3EImage Not Found%3C%2Ftext%3E%3C%2Fsvg%3E';
@@ -621,7 +652,7 @@ function displayCluster(cluster, isZoomedIn) {
             checkbox.style.display = 'block';
             checkbox.style.position = 'absolute';
             checkbox.style.top = '5px';
-            checkbox.style.left = '5px';
+            checkbox.style.right = '5px';
             checkbox.style.width = '20px';
             checkbox.style.height = '20px';
             checkbox.style.zIndex = '10';
@@ -993,14 +1024,26 @@ function verifySelectedImages(cluster) {
 
     // Update UI
     displayCurrentPage();
+
+    // Automatically navigate to the next cluster if there is one
+    navigateToAdjacentCluster(1);
 }
 
 // Function verifyEntireCluster removed as it's no longer needed
 
+// Function to unverify a cluster
+function unverifyCluster(cluster) {
+    // Remove the cluster from the verified clusters set
+    verifiedClusters.delete(cluster.id);
+
+    // Update the UI
+    displayCurrentPage();
+}
+
 // Function to export verified CSV
 function exportVerifiedCsv() {
     // Create CSV content with updated cluster assignments and verification status
-    let csvContent = 'local_path,component,is_verified\n';
+    let csvContent = 'local_path,component,is_verified,name,hashed_case_id,bucket,condition,image.domain\n';
 
     // Process all images
     allClusters.forEach(cluster => {
@@ -1012,7 +1055,14 @@ function exportVerifiedCsv() {
             // An image is verified if it's in a verified cluster
             const isVerified = isClusterVerified || imageVerificationStatus.get(originalPath) ? 'true' : 'false';
 
-            csvContent += `${originalPath},${component},${isVerified}\n`;
+            // Add the additional columns
+            const name = image.name || '';
+            const hashedCaseId = image.hashedCaseId || '';
+            const bucket = image.bucket || '';
+            const condition = image.condition || '';
+            const imageDomain = image.image?.domain || '';
+
+            csvContent += `${originalPath},${component},${isVerified},${name},${hashedCaseId},${bucket},${condition},${imageDomain}\n`;
         });
     });
 
