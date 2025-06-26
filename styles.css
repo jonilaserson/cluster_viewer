@@ -278,8 +278,7 @@ button:hover {
 
 
 .back-button {
-    display: inline-block;
-    margin-bottom: 20px;
+    display: inline-flex;
     background-color: #555;
     transition: background-color 0.3s;
 }
@@ -415,6 +414,7 @@ button:hover {
 .navigation-group {
     display: flex;
     align-items: center;
+    height: 38px; /* Match the height of other buttons */
 }
 
 /* Make all buttons have consistent height and alignment */
@@ -519,22 +519,28 @@ button:hover {
     box-shadow:
         /* Inner red glow for selection */
         inset 0 0 0 3px #ff5252,
-        /* Space between borders */
-        0 0 0 2px white,
-        /* Outer blue border for query match */
-        0 0 0 5px #2196F3,
+        /* Space between borders - increased from 2px to 5px */
+        0 0 0 5px white,
+        /* Outer blue border for query match - moved further out */
+        0 0 0 8px #2196F3,
         /* Blue glow for query match */
         0 0 10px rgba(33, 150, 243, 0.5),
         /* General shadow */
         0 5px 15px rgba(0, 0, 0, 0.2);
 }
 
-/* Verified cluster styles */
+/* Verified cluster styles - consistent between all-clusters view and zoom-in view */
 .verified-cluster {
     background: linear-gradient(135deg, #8b2e2e, #a83838) !important;
     border-left: 5px solid #ff5252;
     position: relative;
     overflow: hidden;
+    color: white !important; /* Ensure white text in both views */
+}
+
+/* Make sure the cluster header text is white in both views */
+.verified-cluster h3 {
+    color: white;
 }
 
 .verified-cluster::before {
@@ -545,6 +551,40 @@ button:hover {
     font-size: 24px;
     color: rgba(255, 255, 255, 0.2);
     font-weight: bold;
+}
+
+/* Duplicate tag styles */
+.duplicate-tag {
+    position: absolute;
+    top: 30px;
+    right: 5px;
+    padding: 3px 6px;
+    border-radius: 4px;
+    color: white;
+    font-size: 12px;
+    font-weight: bold;
+    z-index: 5;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Make sure the duplicate tag is visible in both normal and zoomed-in views */
+.zoomed-in .duplicate-tag {
+    top: 35px;
+    right: 10px;
+    font-size: 14px;
+    padding: 4px 8px;
+}
+
+/* When an image is both selected and part of a duplicate group */
+.zoomed-in .image-container:has(.image-checkbox:checked) .duplicate-tag {
+    top: 35px;
+    right: 40px; /* Move it to the left of the checkbox */
+}
+
+/* When an image is both a query match and part of a duplicate group */
+.query-match .duplicate-tag {
+    top: 5px;
+    right: 30px;
 }
 
 /* Status indicator for verified clusters */
@@ -760,4 +800,59 @@ button:hover {
 
 .modal-nav.next {
     right: 20px;
+}
+
+/* Duplicate tag styling - now matches query-match-count style */
+.duplicate-tag {
+    display: inline-block;
+    background-color: #673AB7; /* Purple */
+    color: white;
+    padding: 3px 8px;
+    border-radius: 15px;
+    font-weight: bold;
+    font-size: 12px;
+    margin-left: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+/* Mark as duplicates button */
+.mark-duplicates-btn {
+    background-color: #673AB7; /* Purple */
+    color: white;
+}
+
+.mark-duplicates-btn:hover {
+    background-color: #5E35B1;
+}
+
+/* Clear duplicates button */
+.clear-duplicates-btn {
+    background-color: #9E9E9E; /* Gray */
+    color: white;
+}
+
+.clear-duplicates-btn:hover {
+    background-color: #757575;
+}
+
+/* Make sure the duplicate tag and selection styles don't conflict */
+.zoomed-in .image-container:has(.duplicate-tag):has(.image-checkbox:checked) {
+    box-shadow: 0 0 0 3px #ff5252, 0 0 0 6px white, 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+
+/* Special case for images that are query matches, selected, AND part of a duplicate group */
+.zoomed-in .image-container.query-match:has(.duplicate-tag):has(.image-checkbox:checked) {
+    /* Create a triple effect with red (selection), white space, and blue (query match) */
+    border: none;
+    box-shadow:
+        /* Inner red glow for selection */
+        inset 0 0 0 3px #ff5252,
+        /* Space between borders */
+        0 0 0 5px white,
+        /* Outer blue border for query match */
+        0 0 0 8px #2196F3,
+        /* Blue glow for query match */
+        0 0 10px rgba(33, 150, 243, 0.5),
+        /* General shadow */
+        0 5px 15px rgba(0, 0, 0, 0.2);
 }
