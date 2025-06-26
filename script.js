@@ -288,6 +288,12 @@ function processCSVData(csvData, pathPrefix = '') {
             }
         });
 
+        // Check if image.source exists but image_source doesn't
+        if (!imageObj.hasOwnProperty('image_source') && imageObj.hasOwnProperty('image.source')) {
+            // Use image.source as a fallback
+            imageObj.image_source = imageObj['image.source'];
+        }
+
         if (!clusterMap.has(component)) {
             clusterMap.set(component, []);
         }

@@ -23,6 +23,13 @@ A web application for browsing, analyzing, and verifying images grouped by clust
 - Track verification status with visual indicators
 - Create remainder clusters for unselected images
 
+### Duplicate Management
+- Mark selected images as duplicates within clusters
+- Assign duplicate groups with color-coded visual indicators
+- Group-based selection (selecting one image in a duplicate group selects all)
+- Reset duplicate markings as needed
+- Export duplicate group information in the CSV output
+
 ## Setup and Usage
 
 1. Install and start the server:
@@ -47,6 +54,7 @@ Optional columns:
 - `name`: Image name
 - `condition`: Classification or category
 - `hashed_case_id`: Case identifier
+- `image_source` or `image.source`: Source of the image (supports both column names)
 - Any additional columns can be used in queries
 
 ## Technical Notes
