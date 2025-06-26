@@ -441,8 +441,11 @@ function displayCluster(cluster, isZoomedIn) {
 
     // Apply verified styling if needed
     if (isVerified) {
-        headerElement.style.backgroundColor = '#ffcccc'; // Reddish background
+        // Add verified-cluster class which applies the styling
         headerElement.classList.add('verified-cluster');
+
+        // Add white text color for better contrast with the red background
+        headerElement.style.color = 'white';
     }
 
     // Create title element
@@ -452,14 +455,31 @@ function displayCluster(cluster, isZoomedIn) {
     const parentId = cluster.parentClusterId;
 
     // Create the title with appropriate indicators
+    let titleHTML = `Cluster ${cluster.id} <span style="font-size: 0.8em; font-weight: normal;">[${cluster.paths.length} images]`;
+
+    // Add remainder label if applicable
     if (parentId) {
-        titleElement.innerHTML = `${isVerified ? '✓ ' : ''}Cluster ${cluster.id} <span style="font-size: 0.8em; font-weight: normal;">[${cluster.paths.length} images] <span class="remainder-label">Remainder of Cluster ${parentId}</span></span>`;
-    } else {
-        titleElement.innerHTML = `${isVerified ? '✓ ' : ''}Cluster ${cluster.id} <span style="font-size: 0.8em; font-weight: normal;">[${cluster.paths.length} images]</span>`;
+        titleHTML += ` <span class="remainder-label">Remainder of Cluster ${parentId}</span>`;
     }
 
-    // Add title to header
-    headerElement.appendChild(titleElement);
+    // Close the span
+    titleHTML += '</span>';
+
+    // No longer adding the verified tag - the red color and checkmark are enough
+
+    titleElement.innerHTML = titleHTML;
+
+    // Create a flex container for the title and controls
+    const headerFlexContainer = document.createElement('div');
+    headerFlexContainer.style.display = 'flex';
+    headerFlexContainer.style.alignItems = 'center';
+    headerFlexContainer.style.width = '100%';
+
+    // Add title to the flex container
+    headerFlexContainer.appendChild(titleElement);
+
+    // Add the flex container to the header
+    headerElement.appendChild(headerFlexContainer);
 
     if (!isZoomedIn) {
         // Make the entire header clickable to zoom in
@@ -469,35 +489,17 @@ function displayCluster(cluster, isZoomedIn) {
             displayCurrentPage();
         });
     } else {
-        // Create buttons container
-        const buttonsContainer = document.createElement('div');
-        buttonsContainer.style.display = 'flex';
-        buttonsContainer.style.gap = '10px';
-        buttonsContainer.style.marginLeft = 'auto'; // Push to right side
+        // Create a container for all controls
+        const controlsContainer = document.createElement('div');
+        controlsContainer.className = 'cluster-controls-container';
 
-        // Add mark as verified cluster button
-        const verifySelectedBtn = document.createElement('button');
-        verifySelectedBtn.textContent = 'Mark as Verified Cluster';
-        verifySelectedBtn.className = 'verify-selected-btn';
-        verifySelectedBtn.id = 'verifySelectedBtn';
-        verifySelectedBtn.disabled = true; // Initially disabled
-        verifySelectedBtn.addEventListener('click', () => verifySelectedImages(cluster));
-        buttonsContainer.appendChild(verifySelectedBtn);
-
-        // Add unverify button if the cluster is verified (moved before select all)
-        if (isVerified) {
-            const unverifyBtn = document.createElement('button');
-            unverifyBtn.textContent = 'Unverify';
-            unverifyBtn.className = 'unverify-btn';
-            unverifyBtn.addEventListener('click', () => unverifyCluster(cluster));
-            buttonsContainer.appendChild(unverifyBtn);
-        }
+        // Create selection controls group first (swapped order)
+        const selectionGroup = document.createElement('div');
+        selectionGroup.className = 'selection-controls-group';
 
         // Add select all checkbox
         const selectAllContainer = document.createElement('div');
-        selectAllContainer.style.display = 'flex';
-        selectAllContainer.style.alignItems = 'center';
-        selectAllContainer.style.marginRight = '10px';
+        selectAllContainer.className = 'select-all-container';
 
         const selectAllCheckbox = document.createElement('input');
         selectAllCheckbox.type = 'checkbox';
@@ -507,7 +509,7 @@ function displayCluster(cluster, isZoomedIn) {
         const selectAllLabel = document.createElement('label');
         selectAllLabel.htmlFor = `select-all-${cluster.id}`;
         selectAllLabel.textContent = 'Select All';
-        selectAllLabel.style.marginLeft = '5px';
+        selectAllLabel.className = 'select-all-label';
 
         selectAllCheckbox.addEventListener('change', function() {
             const checkboxes = document.querySelectorAll('.image-checkbox');
@@ -519,21 +521,56 @@ function displayCluster(cluster, isZoomedIn) {
 
         selectAllContainer.appendChild(selectAllCheckbox);
         selectAllContainer.appendChild(selectAllLabel);
-        buttonsContainer.appendChild(selectAllContainer);
+        selectionGroup.appendChild(selectAllContainer);
 
-        // Add back button
+        // Add selection group to controls container
+        controlsContainer.appendChild(selectionGroup);
+
+        // Create action buttons group (verify/unverify) - now second
+        const actionButtonsGroup = document.createElement('div');
+        actionButtonsGroup.className = 'action-buttons-group';
+
+        // Add mark as verified cluster button with icon
+        const verifySelectedBtn = document.createElement('button');
+        verifySelectedBtn.innerHTML = '<i>✓</i> Mark as Verified';
+        verifySelectedBtn.className = 'btn verify-selected-btn';
+        verifySelectedBtn.id = 'verifySelectedBtn';
+        verifySelectedBtn.disabled = true; // Initially disabled
+        verifySelectedBtn.addEventListener('click', () => verifySelectedImages(cluster));
+        actionButtonsGroup.appendChild(verifySelectedBtn);
+
+        // Add unverify button if the cluster is verified
+        if (isVerified) {
+            const unverifyBtn = document.createElement('button');
+            unverifyBtn.innerHTML = '<i>↺</i> Unverify';
+            unverifyBtn.className = 'btn unverify-btn';
+            unverifyBtn.addEventListener('click', () => unverifyCluster(cluster));
+            actionButtonsGroup.appendChild(unverifyBtn);
+        }
+
+        // Add action buttons group to controls container
+        controlsContainer.appendChild(actionButtonsGroup);
+
+        // Create navigation group (back button)
+        const navigationGroup = document.createElement('div');
+        navigationGroup.className = 'navigation-group';
+
+        // Add back button with icon
         const backButton = document.createElement('button');
-        backButton.textContent = '← Back to All Clusters';
-        backButton.className = 'back-button';
+        backButton.innerHTML = '<i>←</i> Back to All Clusters';
+        backButton.className = 'btn back-button';
         backButton.addEventListener('click', () => {
             selectedClusterId = null;
             selectedClusterIndex = -1;
             displayCurrentPage();
         });
-        buttonsContainer.appendChild(backButton);
+        navigationGroup.appendChild(backButton);
 
-        // Add buttons container to header
-        headerElement.appendChild(buttonsContainer);
+        // Add navigation group to controls container
+        controlsContainer.appendChild(navigationGroup);
+
+        // Add controls container to the flex container instead of directly to the header
+        headerFlexContainer.appendChild(controlsContainer);
     }
 
     clusterElement.appendChild(headerElement);
@@ -634,7 +671,10 @@ function displayCluster(cluster, isZoomedIn) {
                 infoContainer.appendChild(document.createTextNode(' | '));
             }
             const idSpan = document.createElement('span');
-            idSpan.textContent = `ID: ${imageObj.hashedCaseId}`;
+
+            // Add image.source next to the hashed_case_id if available
+            const imageSource = imageObj.image?.source || '';
+            idSpan.textContent = `ID: ${imageObj.hashedCaseId} ${imageSource}`;
             idSpan.style.fontWeight = 'bold';
             infoContainer.appendChild(idSpan);
         }
@@ -949,8 +989,14 @@ function updateVerifyButtonState() {
     const verifyBtn = document.getElementById('verifySelectedBtn');
 
     if (verifyBtn) {
-        // Enable the button only if 2 or more images are selected
-        verifyBtn.disabled = selectedCheckboxes.length < 2;
+        // Get the current cluster ID
+        const currentClusterId = selectedClusterId;
+
+        // Check if the current cluster is already verified
+        const isClusterVerified = currentClusterId !== null && verifiedClusters.has(currentClusterId);
+
+        // Disable the button if fewer than 2 images are selected OR if the cluster is already verified
+        verifyBtn.disabled = selectedCheckboxes.length < 2 || isClusterVerified;
     }
 }
 
