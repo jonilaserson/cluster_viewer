@@ -63,3 +63,37 @@ Optional columns:
 - Serves images directly from their absolute paths
 - Supports filtering and advanced query expressions
 - Optimized for browsing large sets of clustered images
+
+## Project File Structure
+
+The application follows a modular architecture with the following files:
+
+### Core Files
+- `index.html` - Main HTML structure and entry point
+- `styles.css` - CSS styling for the application
+- `server.js` - Express server for serving files and images
+
+### JavaScript Modules
+- `script.js` - Main entry point and application coordination
+  - Initializes all modules
+  - Sets up event listeners
+  - Coordinates between modules
+
+- `data.js` - Data processing and state management
+  - CSV file parsing and processing
+  - Data structure definitions
+  - State management
+  - Data transformation and organization
+
+- `ui.js` - UI components and rendering
+  - Cluster and image rendering
+  - Modal creation and handling
+  - DOM element creation and management
+  - UI updates and manipulation
+
+- `features.js` - Application features and functionality
+  - Navigation and pagination
+  - Query and filtering system
+  - Verification workflow
+  - Duplicate management
+  - Export functionality
